@@ -6,6 +6,11 @@ const whId = "{whId}"; // ID вебхука
 let pants_timestamp = 0;
 let pants_user = null;
 let pants_raffle_users = null;
+// let pants_raffle_ts = new Map();
+// let pants_raffle_owned = new Map();
+// TODO: если разыгрывали недавно - запретить, в рандом не попадать, при вызове конкретного - отказать
+// Если прошло N минут - разрешить перерозыгрыш
+// Если set(users) - set(pants_raffle_owned) = {} - тогда говорим что некого разыгрывать
 
 function sendMessage(text) {
   if (whSecret == "" || whId == "") return;
@@ -27,7 +32,7 @@ function getRandomItem(set) {
 
 function ChatMessageReceived(data)
 {
-    let msg_text = data.Message[0].Content;
+    let msg_text = data.Message.map((msg) => msg.Content).join(' ');
     let msg_sender = data.User.DisplayName;
     users.add(msg_sender);
     MsgReceived(msg_text, msg_sender);
@@ -35,10 +40,18 @@ function ChatMessageReceived(data)
 
 function MsgReceived(msg_text, msg_sender)
 {
-    if (msg_text == "!трусы") {
+    if (msg_text.startsWith("!трусы")) {
         if (pants_user == null)
         {
-            pants_user = getRandomItem(users);
+            if (msg_text.startsWith("!трусы @"))
+            {
+                if (users.has(msg_text.substring(8)))
+                    pants_user = msg_text.substring(8);
+                else
+                    console.log("Пользователь не найден");
+            }
+            if (pants_user == null)
+                pants_user = getRandomItem(users);
             pants_raffle_users = new Set();
             sendMessage("Внимание, объявляется розыгрыш трусов @" + pants_user + "! Ставьте плюсик в чат для участия в розыгрыше!");
             setTimeout(finishPantsRaffle, 60000)
