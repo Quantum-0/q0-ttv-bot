@@ -3,11 +3,13 @@ const users = new Set();
 const whSecret = "{whSecret}"; // Секрет вебхука
 const whId = "{whId}"; // ID вебхука
 
+const pants_raffle_timer = 60 * 1000;
+
 let pants_timestamp = 0;
 let pants_user = null;
 let pants_raffle_users = null;
-// let pants_raffle_ts = new Map();
-// let pants_raffle_owned = new Map();
+let pants_raffle_ts = new Map();
+let pants_raffle_owned = new Map();
 // TODO: если разыгрывали недавно - запретить, в рандом не попадать, при вызове конкретного - отказать
 // Если прошло N минут - разрешить перерозыгрыш
 // Если set(users) - set(pants_raffle_owned) = {} - тогда говорим что некого разыгрывать
@@ -49,7 +51,13 @@ function MsgReceived(msg_text, msg_sender)
         if (msg_text.startsWith("!трусы @"))
         {
             if (users.has(msg_text.substring(8)))
+            {
                 pants_user = msg_text.substring(8);
+                if (pants_raffle_ts.has(pants_user) && ((Date.now() - pants_raffle_ts.get(pants_user)) < 600)) {
+                    sendMessage("Трусы @" + pants_user + " уже были недавно разыграны. Давайте позволим @" + pants_user + " сперва найти и надеть новые трусы, а потом уже разыграем их");
+                    return;
+                }
+            }
             else {
                 sendMessage("Не вижу такого пользователя :< Разыгрывать трусы можно только тех людей, кто писал в чатик ^^\"");
                 return;
@@ -61,7 +69,7 @@ function MsgReceived(msg_text, msg_sender)
         // Begin raffle
         pants_raffle_users = new Set();
         sendMessage("Внимание, объявляется розыгрыш трусов @" + pants_user + "! Ставьте плюсик в чат для участия в розыгрыше!");
-        setTimeout(finishPantsRaffle, 60000);
+        setTimeout(finishPantsRaffle, pants_raffle_timer);
     }
 
     // Pants raffle add user
@@ -94,6 +102,9 @@ function finishPantsRaffle()
     setTimeout(function() {
         sendMessage(raffle_win_text);
     }, 3000);
+
+    // Update maps
+    pants_raffle_ts.set(pants_user, Date.now())
 
     // Erase data
     pants_user = null;
