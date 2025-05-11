@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jumping Image</title>
+    <style>
+        body {
+            margin: 0;
+            overflow-x: hidden;
+        }
+        #imageContainer {
+            position: fixed;
+            bottom: 100px; /* Начальная позиция ниже видимой области */
+            left: -100px; /* Начальная позиция за левой границей */
+            width: 100px;
+            height: 100px;
+            z-index: 1000;
+        }
+        #imageContainer img {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="imageContainer">
+        <img src="tosha_jump_1.webp" alt="Jumping Image">
+    </div>
+
+    <script>
+        // Глобальная переменная состояния
+        let isImageActive = false;
+
+        // Функция для запуска анимации
+        function startImageAnimation() {
+            if (isImageActive) return; // Предотвращаем множественные запуски
+
+            isImageActive = true;
+            const imageContainer = document.getElementById('imageContainer');
+            imageContainer.style.left = '-100px'; // Начальная позиция
+            imageContainer.style.bottom = '100px'; // Начальная позиция по вертикали
+
+            let xPosition = -100; // Горизонтальная позиция
+            let t = 0; // Параметр времени для синусоиды
+            const screenWidth = window.innerWidth;
+            const horizontalSpeed = 2; // Скорость движения вправо (пикселей за кадр)
+            const jumpHeight = 100; // Максимальная высота прыжка (пикселей)
+            const jumpSpeed = 0.05; // Скорость изменения синусоиды
+            const pauseDuration = 500; // Пауза в миллисекундах при "приземлении"
+
+            function moveImage(timestamp) {
+                // Вычисляем вертикальную позицию с помощью abs(sin(t))
+                const yOffset = Math.abs(Math.sin(t)) * jumpHeight;
+
+                // Обновляем позицию
+                imageContainer.style.bottom = `${0+yOffset}px`;
+
+                // Двигаем вправо только если не в паузе
+                const isOnGround = yOffset < 5; // Считаем "на земле", если близко к нулю
+                if (!isOnGround) {
+                    xPosition += horizontalSpeed;
+                    imageContainer.style.left = `${xPosition}px`;
+                }
+
+                // Увеличиваем t для следующего шага
+                t += jumpSpeed;
+
+                if (xPosition > screenWidth) {
+                    // Изображение вышло за правую границу
+                    isImageActive = false;
+                    imageContainer.style.left = '-100px';
+                    imageContainer.style.bottom = '100px';
+                    // Запуск таймера на 10 минут
+                    setTimeout(startImageAnimation, 10 * 60 * 1000);
+                } else {
+                    // Если на земле, делаем паузу
+                    if (isOnGround) {
+                        setTimeout(() => {
+                            requestAnimationFrame(moveImage);
+                        }, pauseDuration);
+                    } else {
+                        requestAnimationFrame(moveImage);
+                    }
+                }
+            }
+
+            requestAnimationFrame(moveImage);
+        }
+
+        // Первый запуск таймера
+        setTimeout(startImageAnimation, 1000);
+
+        // Для отладки выводим состояние в консоль
+        setInterval(() => {
+            console.log('Image active:', isImageActive);
+        }, 1000);
+    </script>
+</body>
+</html>
