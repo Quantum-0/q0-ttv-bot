@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedural Stone Wall</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: transparent; /* Прозрачный фон страницы */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        canvas {
+            border: 1px solid #000;
+            background: transparent; /* Прозрачный фон canvas */
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { alpha: true }); // Включаем поддержку прозрачности
+
+        // Установка размеров canvas
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Класс для точек Вороного
+        class VoronoiPoint {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vertices = [];
+                this.color = `hsl(${Math.random() * 60 + 20}, 50%, ${Math.random() * 20 + 50}%)`;
+                this.crackLevel = 0; // 0: нет трещин, 1: мелкие трещины, 2: крупные трещины, 3: разрушен
+                this.fragments = [];
+                this.texture = null; // Кэшированная текстура
+            }
+        }
+
+        // Генерация точек Вороного
+        const points = [];
+        const numPoints = 50;
+        for (let i = 0; i < numPoints; i++) {
+            points.push(new VoronoiPoint(
+                Math.random() * canvas.width,
+                Math.random() * canvas.height
+            ));
+        }
+
+        // Функция для создания текстуры камня
+        function generateStoneTexture(point) {
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 100;
+            tempCanvas.height = 100;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Базовый цвет
+            tempCtx.fillStyle = point.color;
+            tempCtx.fillRect(0, 0, 100, 100);
+
+            // Шум для текстуры
+            for (let x = 0; x < 100; x++) {
+                for (let y = 0; y < 100; y++) {
+                    let value = Math.random() * 0.3;
+                    tempCtx.fillStyle = `rgba(0,0,0,${value})`;
+                    tempCtx.fillRect(x, y, 1, 1);
+                }
+            }
+
+            return tempCanvas;
+        }
+
+        // Генерация и кэширование текстур при инициализации
+        points.forEach(point => {
+            point.texture = generateStoneTexture(point);
+        });
+
+        // Функция для вычисления диаграммы Вороного
+        function computeVoronoi() {
+            for (let point of points) {
+                point.vertices = [];
+            }
+            // Простая реализация через растровый подход
+            for (let x = 0; x < canvas.width; x += 5) {
+                for (let y = 0; y < canvas.height; y += 5) {
+                    let closestPoint = points[0];
+                    let minDist = Math.hypot(points[0].x - x, points[0].y - y);
+                    for (let point of points) {
+                        let dist = Math.hypot(point.x - x, point.y - y);
+                        if (dist < minDist) {
+                            minDist = dist;
+                            closestPoint = point;
+                        }
+                    }
+                    closestPoint.vertices.push({ x, y });
+                }
+            }
+        }
+
+        // Отрисовка камней
+        function drawStones() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Очищаем с учетом прозрачности
+
+            for (let point of points) {
+                if (point.crackLevel === 3 && point.fragments.length === 0) {
+                    continue; // Пропускаем полностью разрушенные камни
+                }
+
+                if (point.crackLevel === 3) {
+                    // Отрисовка фрагментов при разрушении
+                    point.fragments.forEach(fragment => {
+                        ctx.save();
+                        ctx.translate(fragment.x, fragment.y);
+                        ctx.rotate(fragment.rotation);
+                        ctx.fillStyle = point.color;
+                        ctx.beginPath();
+                        ctx.moveTo(fragment.vertices[0].x, fragment.vertices[0].y);
+                        for (let i = 1; i < fragment.vertices.length; i++) {
+                            ctx.lineTo(fragment.vertices[i].x, fragment.vertices[i].y);
+                        }
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.restore();
+                    });
+                    continue;
+                }
+
+                // Отрисовка камня
+                ctx.beginPath();
+                let vertices = getConvexHull(point.vertices);
+                if (vertices.length > 0) {
+                    ctx.moveTo(vertices[0].x, vertices[0].y);
+                    for (let i = 1; i < vertices.length; i++) {
+                        ctx.lineTo(vertices[i].x, vertices[i].y);
+                    }
+                    ctx.closePath();
+
+                    // Используем кэшированную текстуру
+                    let pattern = ctx.createPattern(point.texture, 'repeat');
+                    ctx.fillStyle = pattern;
+                    ctx.fill();
+
+                    // Эффект объема
+                    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    // Трещины
+                    if (point.crackLevel > 0) {
+                        drawCracks(point, vertices);
+                    }
+                }
+            }
+        }
+
+        // Вычисление выпуклой оболочки для полигона
+        function getConvexHull(points) {
+            if (points.length < 3) return points;
+            points.sort((a, b) => a.x - b.x);
+            let hull = [];
+            for (let p of points) {
+                while (hull.length >= 2 && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) {
+                    hull.pop();
+                }
+                hull.push(p);
+            }
+            let lower = hull.length;
+            for (let i = points.length - 2; i >= 0; i--) {
+                let p = points[i];
+                while (hull.length > lower && cross(hull[hull.length - 2], hull[hull.length - 1], p) <= 0) {
+                    hull.pop();
+                }
+                hull.push(p);
+            }
+            hull.pop();
+            return hull;
+        }
+
+        function cross(o, a, b) {
+            return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+        }
+
+        // Отрисовка трещин
+        function drawCracks(point, vertices) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+            ctx.lineWidth = point.crackLevel === 1 ? 1 : 2;
+
+            // Генерация трещин с помощью Вороного
+            let crackPoints = [];
+            let numCracks = point.crackLevel === 1 ? 5 : 10;
+            for (let i = 0; i < numCracks; i++) {
+                crackPoints.push({
+                    x: point.x + (Math.random() - 0.5) * 50,
+                    y: point.y + (Math.random() - 0.5) * 50
+                });
+            }
+
+            for (let cp of crackPoints) {
+                ctx.beginPath();
+                ctx.moveTo(point.x, point.y);
+                ctx.lineTo(cp.x, cp.y);
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        // Функция обработки клика
+        function handleStoneClick(x, y) {
+            let closestPoint = null;
+            let minDist = Infinity;
+            for (let point of points) {
+                let dist = Math.hypot(point.x - x, point.y - y);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestPoint = point;
+                }
+            }
+
+            if (closestPoint && minDist < 100 && closestPoint.crackLevel < 3) {
+                closestPoint.crackLevel++;
+                if (closestPoint.crackLevel === 3) {
+                    // Разрушение камня
+                    closestPoint.fragments = [];
+                    let numFragments = 5;
+                    for (let i = 0; i < numFragments; i++) {
+                        let fragment = {
+                            x: closestPoint.x,
+                            y: closestPoint.y,
+                            vx: (Math.random() - 0.5) * 5,
+                            vy: (Math.random() - 0.5) * 5,
+                            rotation: 0,
+                            vRotation: (Math.random() - 0.5) * 0.1,
+                            vertices: []
+                        };
+                        // Генерация фрагментов
+                        for (let j = 0; j < 4; j++) {
+                            fragment.vertices.push({
+                                x: (Math.random() - 0.5) * 20,
+                                y: (Math.random() - 0.5) * 20
+                            });
+                        }
+                        closestPoint.fragments.push(fragment);
+                    }
+
+                    // Анимация падения
+                    let startTime = performance.now();
+                    function animateFragments(time) {
+                        let t = (time - startTime) / 1000; // Время в секундах
+                        closestPoint.fragments.forEach(fragment => {
+                            fragment.x += fragment.vx;
+                            fragment.y += fragment.vy + t * 10; // Гравитация
+                            fragment.rotation += fragment.vRotation;
+                        });
+
+                        drawStones();
+                        if (t < 1) {
+                            requestAnimationFrame(animateFragments);
+                        } else {
+                            closestPoint.fragments = []; // Удаляем фрагменты после анимации
+                            drawStones();
+                        }
+                    }
+                    requestAnimationFrame(animateFragments);
+                } else {
+                    drawStones();
+                }
+            }
+        }
+
+        // Обработчик кликов мыши
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            handleStoneClick(x, y);
+        });
+
+        // Инициализация
+        computeVoronoi();
+        drawStones();
+
+        // Экспорт функции для вызова из консоли
+        window.handleStoneClick = handleStoneClick;
+
+        let ws = new WebSocket(`wss://heat-api.j38.net/channel/594409474`);
+        ws.addEventListener('message', (message) => {
+            // Parse message data.
+            let data = JSON.parse(message.data);
+
+            // Write to console.
+            // console.log(data);
+            handleStoneClick(window.innerWidth * data.x, window.innerHeight * data.y);
+        });
+    </script>
+</body>
+</html>
