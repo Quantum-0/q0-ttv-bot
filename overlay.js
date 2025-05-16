@@ -10,9 +10,15 @@ let pants_user = null;
 let pants_raffle_users = null;
 let pants_raffle_ts = new Map();
 let pants_raffle_owned = new Map();
-// TODO: если разыгрывали недавно - запретить, в рандом не попадать, при вызове конкретного - отказать
-// Если прошло N минут - разрешить перерозыгрыш
-// Если set(users) - set(pants_raffle_owned) = {} - тогда говорим что некого разыгрывать
+let pants_raffles_count = 0;
+let pants_winners_count = new Map(); // user:wins_count
+
+let is_rebellion = false;
+const rebels = new Set();
+let rebellion_start = 0;
+const regex_rebel = /^бу+н[дт]$/i
+
+// TODO refactor "a" + x + "b" => `a ${x} b`
 
 function sendMessage(text) {
     if (whSecret == "" || whId == "") return;
@@ -22,17 +28,24 @@ function sendMessage(text) {
     xhr.send(JSON.stringify({
         text: text
     }));
+	console.log("SEND MSG: " + text);
 }
 
 function getRandomItem(set) {
     let items = Array.from(set);
+	if (items.length == 0)
+		return null;
     let value = Math.floor(Math.random() * items.length);
     return items[value];
 }
 
+function getRandomUserForPantsRaffle() {
+	return getRandomItem(Array.from(users).filter(x => !pants_raffle_ts.has(x) || (Date.now() - pants_raffle_ts.get(x) > 600*1000)));
+}
+
 function ChatMessageReceived(data)
 {
-    let msg_text = data.Message.map((msg) => msg.Content).join(' ');
+    let msg_text = data.Message.map((msg) => msg.Content).join(' ').trim();
     let msg_sender = data.User.DisplayName;
     users.add(msg_sender);
     MsgReceived(msg_text, msg_sender);
@@ -53,7 +66,8 @@ function MsgReceived(msg_text, msg_sender)
             if (users.has(msg_text.substring(8)))
             {
                 pants_user = msg_text.substring(8);
-                if (pants_raffle_ts.has(pants_user) && ((Date.now() - pants_raffle_ts.get(pants_user)) < 600)) {
+				// Deny reraffle is was already raffled
+                if (pants_raffle_ts.has(pants_user) && ((Date.now() - pants_raffle_ts.get(pants_user)) < 600*1000)) {
                     sendMessage("Трусы @" + pants_user + " уже были недавно разыграны. Давайте позволим @" + pants_user + " сперва найти и надеть новые трусы, а потом уже разыграем их");
                     return;
                 }
@@ -64,7 +78,13 @@ function MsgReceived(msg_text, msg_sender)
             }
         }
         if (pants_user == null)
-            pants_user = getRandomItem(users);
+            pants_user = getRandomUserForPantsRaffle();
+		if (pants_user == null) {
+			const min_delta = (Date.now() - Math.max(...Array.from(map.values()))) / 1000;
+			sendMessage("К сожалению, все трусы текущих чатерсов были разыграны за последние 10 минут, поэтому пока нет трусов для розыгрыша :< Трусы разыграть можно будет через " + min_delta + " секунд!");
+			return;
+		}
+			
 
         // Begin raffle
         pants_raffle_users = new Set();
@@ -78,10 +98,44 @@ function MsgReceived(msg_text, msg_sender)
         if (pants_raffle_users.size == 5)
             sendMessage("Уже целых 5 человек хотят заполучить трусы @" + pants_user + "! Ничего себе! А ты пользуешься популярностью ;)");
     }
+	
+	// Pants statistics
+	else if (["!трусы-стат", "!трусыстика", "!трусистика", "!трустат", "!руструсстат", "!трусокрад"].includes(msg_text.toLowerCase())) {
+		const top_pants_owner = Object.entries(pants_winners_count).sort(([,a],[,b]) => b-a)[0];
+		sendMessage("За сегодняшний стрим трусы успели разыграть уже " + pants_raffles_count + " раз. Больше всех трусов забирает себе @" + top_pants_owner + ");
+	}
+	
+	// БУНД
+	else if (msg_text == "!начатьбунд" || msg_text == "!начатьбунт") {
+		if (is_rebellion) {
+			sendMessage("Бунд уже начат, нинада новый бунд!");
+			return;
+		}
+		
+		rebellion_start = Date.now();
+		rebels.clear();
+		rebels.add(msg_sender);
+	}
+	else if (is_rebellion && regex_rebel.test(msg_text)) {
+		if (rebels.includes(msg_sender)) {
+			// sendMessage(`@${msg_sender}, ты уже бунтуешь!`);
+		}
+		rebels.add(msg_sender);
+	}
+	else if (msg_text == "!закончитьбунт" || msg_text == "!закончитьбунд") {
+		if (!is_rebellion) {
+			sendMessage("Бунда не было, ты чаво!");
+		} else {
+			sendMessage(`Бунд закончен. Чатик бунтовал ${(Date.now() - rebellion_start) / 1000} секунд. В бунте приняли участие ${rebels.length} пчеловек. Вот они: ${rebels.join(", ")}`);
+			is_rebellion = false;
+		}
+	}
 }
 
 function finishPantsRaffle()
 {
+	pants_raffles_count++;
+	
     // No joined users
     if (pants_raffle_users.size == 0) {
         sendMessage("Розыгрыш окончен! Но, к сожалению, никто не принял участие в розыгрыше твоих трусов, @" + pants_user + ", поэтому они остаются при тебе :с");
@@ -105,6 +159,11 @@ function finishPantsRaffle()
 
     // Update maps
     pants_raffle_ts.set(pants_user, Date.now())
+	pants_raffle_owned.set(pants_user, pants_winner);
+	if !pants_winners_count.has(pants_winner)
+		pants_winners_count.set(pants_winner, 1);
+	else
+		pants_winners_count.set(pants_winner, pants_winners_count.get(pants_winner) + 1);
 
     // Erase data
     pants_user = null;
