@@ -16,7 +16,7 @@ let pants_winners_count = new Map(); // user:wins_count
 let is_rebellion = false;
 const rebels = new Set();
 let rebellion_start = 0;
-const regex_rebel = /^бу+н[дт]$/i
+const regex_rebel = /^бу+н[дт]$/i;
 
 // TODO refactor "a" + x + "b" => `a ${x} b`
 
@@ -102,7 +102,7 @@ function MsgReceived(msg_text, msg_sender)
 	// Pants statistics
 	else if (["!трусы-стат", "!трусыстика", "!трусистика", "!трустат", "!руструсстат", "!трусокрад"].includes(msg_text.toLowerCase())) {
 		const top_pants_owner = Object.entries(pants_winners_count).sort(([,a],[,b]) => b-a)[0];
-		sendMessage("За сегодняшний стрим трусы успели разыграть уже " + pants_raffles_count + " раз. Больше всех трусов забирает себе @" + top_pants_owner + ");
+		sendMessage("За сегодняшний стрим трусы успели разыграть уже " + pants_raffles_count + " раз. Больше всех трусов забирает себе @" + top_pants_owner);
 	}
 	
 	// БУНД
@@ -117,7 +117,7 @@ function MsgReceived(msg_text, msg_sender)
 		rebels.add(msg_sender);
 	}
 	else if (is_rebellion && regex_rebel.test(msg_text)) {
-		if (rebels.includes(msg_sender)) {
+		if (rebels.has(msg_sender)) {
 			// sendMessage(`@${msg_sender}, ты уже бунтуешь!`);
 		}
 		rebels.add(msg_sender);
@@ -160,7 +160,7 @@ function finishPantsRaffle()
     // Update maps
     pants_raffle_ts.set(pants_user, Date.now())
 	pants_raffle_owned.set(pants_user, pants_winner);
-	if !pants_winners_count.has(pants_winner)
+	if (!pants_winners_count.has(pants_winner))
 		pants_winners_count.set(pants_winner, 1);
 	else
 		pants_winners_count.set(pants_winner, pants_winners_count.get(pants_winner) + 1);
