@@ -115,6 +115,7 @@ function MsgReceived(msg_text, msg_sender)
 		rebellion_start = Date.now();
 		rebels.clear();
 		rebels.add(msg_sender);
+		is_rebellion = true;
 	}
 	else if (is_rebellion && regex_rebel.test(msg_text)) {
 		if (rebels.has(msg_sender)) {
