@@ -119,6 +119,7 @@ function MsgReceived(msg_text, msg_sender)
         rebels.clear();
         rebels.add(msg_sender);
         is_rebellion = true;
+        sendMessage(`Пользователь @${msg_sender} начинает бунд!`);
     }
     else if (is_rebellion && regex_rebel.test(msg_text)) {
         if (rebels.has(msg_sender)) {
@@ -130,7 +131,8 @@ function MsgReceived(msg_text, msg_sender)
         if (!is_rebellion) {
             sendMessage("Бунда не было, ты чаво!");
         } else {
-            sendMessage(`Бунд закончен. Чатик бунтовал ${(Date.now() - rebellion_start) / 1000} секунд. В бунте приняли участие ${rebels.length} пчеловек. Вот они: ${rebels.join(", ")}`);
+            const rebels_str = Array.from(rebels).join(', ');
+            sendMessage(`Бунд закончен. Чатик бунтовал ${(Date.now() - rebellion_start) / 1000} секунд. В бунте приняли участие ${rebels.size} пчеловек. Вот они: ${rebels_str}`);
             is_rebellion = false;
         }
     }
