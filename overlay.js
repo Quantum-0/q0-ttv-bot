@@ -20,14 +20,14 @@ const regex_rebel = /^бу+н[дт]$/i;
 
 
 function sendMessage(text) {
-    if (whSecret === "" || whId === "") return;
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", `https://api.mixitupapp.com/api/webhook/${whId}?secret=${whSecret}`, true);
+    if (whSecret == "" || whId == "") return;
+    var xhr = new XMLHttpRequest();
+    xhr.open("POST", "https://api.mixitupapp.com/api/webhook/" + whId + "?secret=" + whSecret, true);
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.send(JSON.stringify({
-        text
+        text: text
     }));
-    console.log(`SEND MSG: ${text}`);
+    console.log("SEND MSG: " + text);
 }
 
 function getRandomItem(set) {
@@ -69,6 +69,7 @@ function MsgReceived(msg_text, msg_sender) {
                 // Deny re-raffle when was already raffled
                 if (pants_raffle_ts.has(pants_user) && ((Date.now() - pants_raffle_ts.get(pants_user)) < 600 * 1000)) {
                     sendMessage(`Трусы @${pants_user} уже были недавно разыграны. Давайте позволим @${pants_user} сперва найти и надеть новые трусы, а потом уже разыграем их`);
+                    pants_user = null;
                     return;
                 }
             } else {
