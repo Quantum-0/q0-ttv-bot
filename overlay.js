@@ -143,10 +143,20 @@ function finishPantsRaffle()
     // No joined users
     if (pants_raffle_users.size == 0) {
         sendMessage("Розыгрыш окончен! Но, к сожалению, никто не принял участие в розыгрыше твоих трусов, @" + pants_user + ", поэтому они остаются при тебе :с");
+        // Erase data
+        pants_user = null;
+        pants_raffle_users = null;
+
         return;
     }
 
-    sendMessage("Розыгрыш трусов окончен! В нашей лотерее приняло участие аж целых " + pants_raffle_users.size + " человек! Время объявлять победителя! Итак.. Трусы @" + pants_user + " сегодня получааааает... *барабанная дробь*");
+    const count = pants_raffle_users.size
+    if (count === 1)
+        sendMessage("Розыгрыш трусов окончен! В нашей лотерее принял участие аж целый " + count + " человек! Время объявлять победителя! Итак.. Трусы @" + pants_user + " сегодня получааааает... *барабанная дробь*");
+    else if (count >= 1 && count <= 4)
+        sendMessage("Розыгрыш трусов окончен! В нашей лотерее приняло участие аж целых " + count + " человека! Время объявлять победителя! Итак.. Трусы @" + pants_user + " сегодня получааааает... *барабанная дробь*");
+    else if (count >= 5)
+        sendMessage("Розыгрыш трусов окончен! В нашей лотерее приняло участие аж целых " + count + " человек! Время объявлять победителя! Итак.. Трусы @" + pants_user + " сегодня получааааает... *барабанная дробь*");
 
     // Choose winner
     let pants_winner = getRandomItem(pants_raffle_users);
