@@ -72,6 +72,11 @@ function MsgReceived(msg_text, msg_sender) {
                     pants_user = null;
                     return;
                 }
+                if (pants_user.toLowerCase() === "sillysnaily") {
+                    sendMessage(`Простите, но вы не можете разыграть трусы Снэйл :< Она их крепко держит при себе и кусается, если попробовать отнять! Выберите другого пользователя с:`);
+                    pants_user = null;
+                    return;
+                }
             } else {
                 sendMessage("Не вижу такого пользователя :< Разыгрывать трусы можно только тех людей, кто писал в чатик ^^\"");
                 return;
